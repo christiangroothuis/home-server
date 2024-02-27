@@ -1,0 +1,13 @@
+---
+- name: Ensure nginx is installed.
+  apt:
+    name: "nginx"
+    state: present
+
+- import_tasks: vhosts.yml
+
+- name: Ensure nginx service is running as configured.
+  service:
+    name: nginx
+    state: started
+    enabled: true

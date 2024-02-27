@@ -1,0 +1,19 @@
+certbot_cloudflare_ini_location: /etc/letsencrypt/dnscloudflare.ini
+certbot_create_if_missing: true
+
+certbot_create_command: >
+  certbot certonly
+  {{ '--test-cert' if certbot_testmode else '' }}
+  --noninteractive
+  --dns-cloudflare
+  --installer nginx
+  --dns-cloudflare-credentials {{ certbot_cloudflare_ini_location }}
+  --dns-cloudflare-propagation-seconds 20
+  --agree-tos
+  --email {{ cert_item.email | default(certbot_admin_email) }}
+  -d {{ cert_item.domains | join(',') }}
+
+certbot_auto_renew: true
+certbot_auto_renew_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+certbot_auto_renew_hour: "2"
+certbot_auto_renew_minute: "56"

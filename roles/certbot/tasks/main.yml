@@ -1,0 +1,61 @@
+---
+- name: Ensure snap is installed
+  package:
+    name: snapd
+    state: present
+
+- name: Install Cerbot
+  community.general.snap:
+    name:
+      - certbot
+    classic: true
+
+- name: Enable certbot
+  file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+
+- name: Trust certbot snap with root
+  community.general.snap:
+    name: certbot
+    options:
+      - trust-plugin-with-root=ok
+
+- name: check if certbot-dns-cloudflare plugin is installed
+  shell: certbot plugins | grep dns-cloudflare
+  register: cf_check
+  ignore_errors: true
+  changed_when: "cf_check is failed"
+
+- name: Install certbot-dns-cloudflare
+  community.general.snap:
+    name:
+      - certbot-dns-cloudflare
+  when: cf_check is failed
+
+- name: Create certbot folder - sudouser
+  file:
+    path: /etc/letsencrypt
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Create Cloudflare credentials file
+  template:
+    src: "cloudflare.ini"
+    dest: "{{ certbot_cloudflare_ini_location }}"
+    owner: root
+    group: root
+    mode: 0600
+
+- include_tasks: certs.yml
+  with_items: "{{ certbot_certs }}"
+  when:
+    - certbot_create_if_missing
+  loop_control:
+    loop_var: cert_item
+
+- import_tasks: renew-cron.yml
+  when: certbot_auto_renew

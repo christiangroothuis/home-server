@@ -1,0 +1,28 @@
+---
+- name: Make sure that the docker composer folder exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    state: directory
+  loop:
+    - "{{ docker_compose_dir }}/pihole"
+
+- name: Make sure that the docker data folders exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    state: directory
+    mode: 0750
+  loop:
+    - "{{ docker_data_dir }}/pihole"
+
+- name: Copy the PiHole compose file
+  template:
+    src: templates/pihole-compose.yml
+    dest: "{{ docker_compose_dir }}/pihole/compose.yml"
+
+- name: Docker-compose up
+  community.docker.docker_compose:
+    project_src: "{{ docker_compose_dir }}/pihole"

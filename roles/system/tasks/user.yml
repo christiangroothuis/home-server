@@ -8,14 +8,14 @@
     name: "{{ item }}"
     state: present
   loop:
-      - "{{ username }}"
-      - docker
-   
+    - "{{ username }}"
+    - docker
+
 - name: Create a login user
   user:
     name: "{{ username }}"
     password: "{{ password | password_hash('sha512') }}"
-    groups: 
+    groups:
       - "{{ sudo_group }}"
       - docker
       - users
@@ -31,31 +31,38 @@
     group: "{{ username }}"
     recurse: yes
 
-- name: Allow '{{ sudo_group }}' group to have passwordless sudo
+- name: Allow '{{ sudo_group }}' group to not have passwordless sudo
   lineinfile:
     path: /etc/sudoers
     state: present
     regexp: '^%{{ sudo_group }}'
-    line: '%{{ sudo_group }} ALL=(ALL) NOPASSWD: ALL'
+    line: '%{{ sudo_group }} ALL=(ALL) ALL'
     validate: '/usr/sbin/visudo -cf %s'
 
-- name: Copy the public SSH key 
+- name: Copy the public SSH key
   authorized_key:
     user: "{{ username }}"
     state: present
     key: "{{ ssh_public_key }}"
 
 - name: Set the default shell
-  user: 
+  user:
     name: "{{ username }}"
     shell: "{{ shell }}"
+
+- name: Configure visudo timestamp_type
+  lineinfile:
+    path: /etc/sudoers
+    regexp: '^#Defaults\\s+timestamp_type'
+    line: "Defaults timestamp_type=global"
+    validate: "/usr/sbin/visudo -cf %s"
 
 - name: Disable fish greeting
   lineinfile:
     path: /home/{{ username }}/.config/fish/fish_variables
     state: present
-    regexp: 'fish_greeting:.+'
-    line: 'SETUVAR fish_greeting:'
+    regexp: "fish_greeting:.+"
+    line: "SETUVAR fish_greeting:"
     create: true
     owner: "{{ username }}"
     group: "{{ username }}"

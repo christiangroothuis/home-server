@@ -1,0 +1,192 @@
+services:
+  transmission:
+    image: haugene/transmission-openvpn:latest
+    container_name: transmission
+    restart: unless-stopped
+    networks:
+      - medianet
+    environment:
+      - PUID={{ media_uid }}
+      - PGID={{ media_gid }}
+      - LOCAL_NETWORK=192.168.0.0/16
+      - OPENVPN_PROVIDER={{ vpn_provider }}
+      - OPENVPN_CONFIG={{ vpn_config }}
+      - OPENVPN_USERNAME={{ vpn_username }}
+      - OPENVPN_PASSWORD={{vpn_password}}
+      - TRANSMISSION_WEB_UI=transmissionic
+      - TRANSMISSION_DOWNLOAD_DIR=/files/downloads
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    cap_add:
+      - NET_ADMIN
+    logging:
+        driver: json-file
+        options:
+            max-size: 10m
+    volumes:
+      - {{ media_dir }}/transmission/data:/data
+      - {{ media_dir }}/files/downloads:/files/downloads
+      - {{ media_dir }}/transmission/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "9117:9117"
+      - "8191:8191"
+      - "9091:9091"
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    network_mode: service:transmission
+    depends_on:
+      - transmission
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - LOG_LEVEL=info
+      - TZ=Europe/Amsterdam
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    restart: unless-stopped
+    ports:
+      - "7878:7878"
+    networks:
+      - medianet
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - TZ=Europe/Amsterdam
+    volumes:
+      - {{ media_dir }}/radarr:/config
+      - {{ media_dir }}/files:/files
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    ports:
+      - "8989:8989"
+    networks:
+      - medianet
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - TZ=Europe/Amsterdam
+    volumes:
+      - {{ media_dir }}/sonarr/config:/config
+      - {{ media_dir }}/files:/files
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    restart: unless-stopped
+    depends_on:
+      - transmission
+    network_mode: service:transmission
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - TZ=Europe/Amsterdam
+    volumes:
+      - {{ media_dir }}/jackett/config:/config
+      - {{ media_dir }}/jackett/downloads:/downloads
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+{% if "plex" in services %}
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    restart: unless-stopped
+    ports:
+      - "32400:32400"
+      - "1900:1900"
+      - "3005:3005"
+      - "5353:5353"
+      - "8324:8324"
+      - "32410:32410"
+      - "32412:32412"
+      - "32413:32413"
+      - "32414:32414"
+      - "32469:32469"
+    networks:
+      - medianet
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - TZ=Europe/Amsterdam
+    group_add:
+      - "105" # Change this to match your "render" host group id and remove this comment
+      - "44" # Change this to match your "video" host group id and remove this comment
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/kfd:/dev/kfd # Remove this device if you don't use the OpenCL tone-mapping
+    volumes:
+      - {{ media_dir }}/plex:/config
+      - {{ media_dir }}/files/tv:/tv
+      - {{ media_dir }}/files/movies:/movies
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+{% endif %}
+
+{% if "jellyfin" in services %}
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    volumes:
+      - {{ media_dir }}/jellyfin/config:/config
+      - {{ media_dir }}/jellyfin/cache:/cache
+      - {{ media_dir }}/files/movies:/movies
+      - {{ media_dir }}/files/tv:/tv
+    restart: 'unless-stopped'
+    ports:
+      - 8096:8096
+    networks:
+      - medianet
+    group_add:
+      - "105" # Change this to match your "render" host group id and remove this comment
+      - "44" # Change this to match your "video" host group id and remove this comment
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/kfd:/dev/kfd # Remove this device if you don't use the OpenCL tone-mapping
+    environment:
+      - PGID={{ media_gid }}
+      - PUID={{ media_uid }}
+      - TZ=Europe/Amsterdam
+      - JELLYFIN_PublishedServerUrl={{ nginx_proxies | selectattr('name', 'equalto', 'jellyfin') | map(attribute='domain') | first }}
+      - ROC_ENABLE_PRE_VEGA=1
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+{% endif %}
+
+{% if "homarr" in services %}
+  homarr:
+    container_name: homarr:latest
+    restart: unless-stopped
+    image: ghcr.io/ajnart/homarr:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Optional, only if you want docker integration
+      - {{ media_dir }}/homarr/configs:/app/data/configs
+      - {{ media_dir }}/homarr/icons:/app/public/icons
+      - {{ media_dir }}/homarr/data:/data
+    networks:
+      - medianet
+    ports:
+      - '7575:7575'
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+{% endif %}
+
+networks:
+  medianet:
+    driver: bridge

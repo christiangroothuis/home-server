@@ -1,0 +1,43 @@
+---
+- name: Make sure that the docker folders exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    state: directory
+  loop:
+    - "{{ docker_compose_dir }}/media"
+
+- name: Ensure group "media" exists with correct gid
+  ansible.builtin.group:
+    name: docker
+    state: present
+    gid: 996
+- name: Ensure group "media" exists with correct gid
+  ansible.builtin.group:
+    name: media
+    state: present
+    gid: 1051
+
+- name: Ensure media user exists
+  ansible.builtin.user:
+    name: media
+    group: media
+    uid: 1051
+    state: present
+    createhome: no
+
+- name: Set media user UID and GID facts
+  set_fact:
+    media_uid: 1051
+    media_gid: 1051
+
+- name: Copy the compose file
+  template:
+    src: templates/media-compose.yml
+    dest: "{{ docker_compose_dir }}/media/compose.yml"
+
+- name: Docker-compose up
+  community.docker.docker_compose:
+    remove_orphans: true
+    project_src: "{{ docker_compose_dir }}/media"

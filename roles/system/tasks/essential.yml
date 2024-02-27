@@ -1,5 +1,5 @@
 ---
-- name: Update and upgrade packages 
+- name: Update and upgrade packages
   apt:
     update_cache: yes
     upgrade: yes
@@ -19,6 +19,15 @@
   package:
     name: "{{ extra_packages }}"
     state: present
+
+- name: Install extra snap packages
+  package:
+    name: "{{ extra_packages }}"
+    state: present
+
+- name: Execute modprobe for drivetemp
+  ansible.builtin.command:
+    cmd: modprobe drivetemp
 
 - name: Set the hostname
   hostname:

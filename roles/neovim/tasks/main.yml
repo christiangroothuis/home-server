@@ -30,9 +30,14 @@
       - python3-pip
     state: latest
 
+- name: remove EXTERNALLY-MANAGED
+  ansible.builtin.file:
+    path: /usr/lib/python3.11/EXTERNALLY-MANAGED
+    state: absent
+
 - name: Install github3 module
   pip:
-    name: 
+    name:
       - github3.py
 
 - name: Check latest neovim release
@@ -53,74 +58,71 @@
 - name: Install neovim
   when: neovim_release.tag != neovim_version.stdout
   block:
-  - name: Check if the node repo is present
-    stat:
-      path: "/etc/apt/sources.list.d/nodesource.list"
-    register: nodesource
+    - name: Check if the node repo is present
+      stat:
+        path: "/etc/apt/sources.list.d/nodesource.list"
+      register: nodesource
 
-  - name: Add the node repo
-    shell:
-      cmd: "curl -sL https://deb.nodesource.com/setup_16.x | bash -"
-    when: not nodesource.stat.exists
-    tags:
-      - skip_ansible_lint
+    - name: Add the node repo
+      shell:
+        cmd: "curl -sL https://deb.nodesource.com/setup_16.x | bash -"
+      when: not nodesource.stat.exists
+      tags:
+        - skip_ansible_lint
 
-  - name: Add the yarn key
-    apt_key:
-      url: https://dl.yarnpkg.com/debian/pubkey.gpg 
-      state: present
+    - name: Install the dependencies
+      package:
+        name:
+          - golang
+          - ninja-build
+          - gettext
+          - libtool
+          - libtool-bin
+          - autoconf
+          - automake
+          - cmake
+          - g++
+          - pkg-config
+          - unzip
+          - curl
+          - doxygen
+        state: present
 
-  - name: Add the yarn repo
-    apt_repository:
-      repo: "deb https://dl.yarnpkg.com/debian/ stable main"
-      state: present
-      filename: yarn
+    - name: Install python modules
+      pip:
+        name:
+          - setuptools
+          - pynvim
 
-  - name: Install the dependencies
-    package:
-      name:
-        - golang
-        - ninja-build 
-        - gettext 
-        - libtool 
-        - libtool-bin 
-        - autoconf 
-        - automake 
-        - cmake 
-        - g++ 
-        - pkg-config 
-        - unzip 
-        - curl 
-        - doxygen
-        - yarn
-      state: present
+    - name: Grab the latest release source
+      unarchive:
+        src: "https://github.com/neovim/neovim/archive/{{ neovim_release['tag'] }}.tar.gz"
+        dest: /tmp
+        remote_src: true
 
-  - name: Install python modules
-    pip:
-      name: 
-        - setuptools
-        - pynvim
+    - name: Get the neovim folder
+      find:
+        paths: /tmp
+        patterns: "^neovim.*$"
+        use_regex: yes
+        file_type: directory
+        recurse: no
+      register: neovim_source
 
-  - name: Grab the latest release source
-    unarchive: 
-      src: "https://github.com/neovim/neovim/archive/{{ neovim_release['tag'] }}.tar.gz"
-      dest: /tmp
-      remote_src: true 
+    - name: Configure Neovim with relative number and number
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.config/nvim/init.vim"
+        create: yes
+        line: "{{ item }}"
+      loop:
+        - "set rnu" # Enable relative number
+        - "set nu" # Enable line number
 
-  - name: Get the neovim folder
-    find:
-      paths: /tmp
-      patterns: "^neovim.*$"
-      use_regex: yes
-      file_type: directory
-      recurse: no
-    register: neovim_source
+    - name: Compile and install neovim
+      shell:
+        cmd: cd {{ neovim_source.files[0].path }} && make install
 
-  - name: Compile and install neovim
-    shell:
-      cmd: cd {{ neovim_source.files[0].path }} && make install
-  
-  - name: Clean up
-    file:
-      path: "{{ neovim_source.files[0].path }}"
-      state: absent
+    - name: Clean up
+      file:
+        path: "{{ neovim_source.files[0].path }}"
+        state: absent

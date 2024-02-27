@@ -1,121 +1,91 @@
 #
 # Misc
 #
-hostname: '{{ inventory_hostname }}'
+hostname: "{{ inventory_hostname }}"
 
 timezone: Europe/Amsterdam
 
-ntp_timezone: '{{ timezone }}'
+ntp_timezone: "{{ timezone }}"
 
 locale: en_US.UTF-8
 
 keyboard_layout: us
 
-username: notthebee
-
-shell: /usr/bin/fish
-
 dotfiles_repo: https://github.com/notthebee/dotfiles
 
-guid: 1000
-
-#
-# Networking
-# 
-tailscale_enabled: yes 
-
-tailscale_exit_node: no
-
-networks:
-  - name: lan
-    cidr: 192.168.2.0/24
-    base: 192.168.2
-    interface: ens18
-    tailscale: yes # whether the subnet should be exposed to other Tailscale nodes
-  - name: app
-    cidr: 10.0.0.0/24
-    base: 10.0.0
-    tailscale: yes
-  - name: iot
-    cidr: 192.168.32.0/24
-    base: 192.168.32
-    tailscale: yes
+shell: /usr/bin/fish
 
 #
 # Docker apps
 #
-#
-docker_dir: /opt/docker/data
-
 docker_compose_dir: /opt/docker/compose
+docker_data_dir: /opt/docker/data
 
 services:
-  - homeassistant
-  - mqtt
-  - nginxproxymanager
-  - deconz
-  - photoprism
-  - syncthing
+  - jellyfin
+  - homarr
+  - plex
+  - nextcloud
+  - watchtower
+  - pihole
+
 
 #
 # Packages
 #
 extra_packages:
   - fish
-  - iperf3
-  - speedtest-cli
   - htop
   - stow
-  - exa
   - git
+  - screen
   - neofetch
+  - smartmontools
   - neovim
+  - radeontop
   - tmux
-  - mosh
   - rsync
   - lm-sensors
-  - iotop
-  - ncdu
+  - powertop
+
+extra_snap_packages:
+  - ngrok
+  - speedtest
 
 #
 # Email credentials (for notifications)
 #
-
-email: moe@notthebe.ee
-
-email_login: '{{ email }}'
-
-email_smtp_host: smtp.mailbox.org
-
+email_login: "{{ email }}"
 email_smtp_port: 465
-
 email_smtp_port_startls: 587
 
 # MSMTP
 msmtp_accounts:
-    - account: mailbox
-      host: '{{ email_smtp_host }}'
-      port: '{{ email_smtp_port_startls }}'
-      auth: 'on'
-      from: '{{ email }}'
-      user: '{{ email }}'
-      password: '{{ email_password }}'
+  - account: mailbox
+    host: "{{ email_smtp_host }}"
+    port: "{{ email_smtp_port_startls }}"
+    auth: "on"
+    from: "{{ email }}"
+    user: "{{ email }}"
+    password: "{{ email_password }}"
 
-msmtp_default_account: 'mailbox'
+msmtp_default_account: "mailbox"
 
-msmtp_alias_default: '{{ email }}'
+msmtp_alias_default: "{{ email }}"
 
 #
 # SSH (geerlingguy.security)
 #
-security_ssh_port: 69
-
-security_sudoers_passwordless: ['{{ username }}']
-
 security_autoupdate_reboot: true
 
-security_autoupdate_mail_to: '{{ email }}'
+security_autoupdate_mail_to: "{{ email }}"
 
-security_autoupdate_reboot_time: '23:00'
+security_autoupdate_reboot_time: "03:00"
 
-security_autoupdate_mail_on_error: false
+security_autoupdate_mail_on_error: true
+
+update_utility: dnf-automatic
+
+update_service: dnf-automatic-install.timer
+
+update_conf_path: /etc/dnf/automatic.conf

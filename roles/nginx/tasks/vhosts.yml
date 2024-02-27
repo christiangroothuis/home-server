@@ -1,0 +1,107 @@
+---
+- name: Remove default nginx vhost config file (if configured).
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: restart nginx
+
+- name: Ensure nginx_vhost_path exists.
+  file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+    mode: 0755
+  notify: reload nginx
+
+- name: Copy nginx.conf
+  template:
+    src: "templates/nginx.conf.yml"
+    dest: "/etc/nginx/nginx.conf"
+    force: true
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload nginx
+
+- name: Create vhost config files for each service.
+  template:
+    src: "templates/{{ proxy_item.name }}.yml"
+    dest: "/etc/nginx/sites-enabled/{{ proxy_item.name }}"
+    force: true
+    owner: root
+    group: root
+    mode: 0644
+  when: proxy_item.state|default('present') != 'absent'
+  with_items: "{{ nginx_proxies }}"
+  loop_control:
+    loop_var: proxy_item
+  notify: reload nginx
+  tags:
+    - skip_ansible_lint
+
+- name: Remove managed vhost config files.
+  file:
+    path: "/etc/nginx/sites-enabled/{{ proxy_item.name }}"
+    state: absent
+  when: proxy_item.state|default('present') == 'absent'
+  with_items: "{{ nginx_proxies }}"
+  loop_control:
+    loop_var: proxy_item
+  notify: reload nginx
+  tags:
+    - skip_ansible_lint
+
+
+- name: Create vhost files for each redirect.
+  template:
+    src: "templates/redirect.yml"
+    dest: "/etc/nginx/sites-enabled/{{ redirect_item.domain }}"
+    force: true
+    owner: root
+    group: root
+    mode: 0644
+  with_items: "{{ nginx_redirects }}"
+  loop_control:
+    loop_var: redirect_item
+  notify: reload nginx
+  tags:
+    - skip_ansible_lint
+
+
+
+# -----------------------------------------------------------------------------------------------
+
+
+# - name: Update apt cache and install Nginx
+#   apt:
+#     name: nginx
+#     state: latest
+#     update_cache: yes
+
+# - name: Start nginx
+#   service:
+#     name: nginx
+#     state: started
+# - name: Apply Nginx template
+#   template:
+#     src: templates/nginx.conf.yml
+#     dest: /etc/nginx/sites-available/default
+#   notify: Restart Nginx
+
+# - name: Enable new site
+#   file:
+#     src: /etc/nginx/sites-available/default
+#     dest: /etc/nginx/sites-enabled/default
+#     state: link
+#   notify: Restart Nginx
+
+# - name: Allow all access to tcp port 80
+#   ufw:
+#     rule: allow
+#     port: '80'
+#     proto: tcp
+
+# handlers:
+#   - name: Restart Nginx
+#     service:
+#       name: nginx
+#       state: restarted

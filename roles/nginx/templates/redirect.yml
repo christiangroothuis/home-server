@@ -1,0 +1,24 @@
+server {
+  listen 80;
+  listen [::]:80;
+
+  server_name {{ redirect_item.domain }};
+
+  {% if redirect_item.cert %}
+  return 301 https://{{ redirect_item.domain }}$request_uri;
+  {% else %}
+  return 301 {{ redirect_item.target }}$request_uri;
+  {% endif %}
+}
+
+{% if redirect_item.cert %}
+server {
+  listen 443 ssl;
+  server_name {{ redirect_item.domain }};
+
+  ssl_certificate /etc/letsencrypt/live/{{ redirect_item.cert }}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/{{ redirect_item.cert }}/privkey.pem;
+
+  return 301 {{ redirect_item.target }}$request_uri;
+}
+{% endif %}
