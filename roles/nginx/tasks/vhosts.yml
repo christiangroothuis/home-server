@@ -50,7 +50,6 @@
   tags:
     - skip_ansible_lint
 
-
 - name: Create vhost files for each redirect.
   template:
     src: "templates/redirect.yml"
@@ -65,43 +64,3 @@
   notify: reload nginx
   tags:
     - skip_ansible_lint
-
-
-
-# -----------------------------------------------------------------------------------------------
-
-
-# - name: Update apt cache and install Nginx
-#   apt:
-#     name: nginx
-#     state: latest
-#     update_cache: yes
-
-# - name: Start nginx
-#   service:
-#     name: nginx
-#     state: started
-# - name: Apply Nginx template
-#   template:
-#     src: templates/nginx.conf.yml
-#     dest: /etc/nginx/sites-available/default
-#   notify: Restart Nginx
-
-# - name: Enable new site
-#   file:
-#     src: /etc/nginx/sites-available/default
-#     dest: /etc/nginx/sites-enabled/default
-#     state: link
-#   notify: Restart Nginx
-
-# - name: Allow all access to tcp port 80
-#   ufw:
-#     rule: allow
-#     port: '80'
-#     proto: tcp
-
-# handlers:
-#   - name: Restart Nginx
-#     service:
-#       name: nginx
-#       state: restarted
