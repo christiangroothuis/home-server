@@ -21,15 +21,6 @@ shell: /usr/bin/fish
 docker_compose_dir: /opt/docker/compose
 docker_data_dir: /opt/docker/data
 
-services:
-  - jellyfin
-  - homarr
-  - plex
-  - nextcloud
-  - watchtower
-  - pihole
-
-
 #
 # Packages
 #
